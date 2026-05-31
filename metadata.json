@@ -1,0 +1,6 @@
+{
+  "name": "PHƯƠNG TINA BRIDAL",
+  "description": "Website gallery ảnh cưới tối giản và cao cấp dành cho Phương Tina Studio để đăng tải và bàn giao ảnh chuyên nghiệp cho khách hàng.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
