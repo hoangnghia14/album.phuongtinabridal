@@ -9,6 +9,7 @@ interface AdminPanelProps {
   onClearFavorites: (index: number) => void;
   studioSettings?: StudioSettings;
   onSaveSettings?: (updated: StudioSettings) => void;
+  onLogout?: () => void;
 }
 
 export default function AdminPanel({
@@ -18,6 +19,7 @@ export default function AdminPanel({
   onClearFavorites,
   studioSettings,
   onSaveSettings,
+  onLogout,
 }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'albums' | 'favorites' | 'deploy' | 'settings'>('albums');
   const [editingAlbumId, setEditingAlbumId] = useState<string | null>(null);
@@ -34,6 +36,7 @@ export default function AdminPanel({
   const [settingsHeroImageUrl, setSettingsHeroImageUrl] = useState(studioSettings?.heroImageUrl || 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=1800');
   const [settingsLogoText, setSettingsLogoText] = useState(studioSettings?.logoText || 'Phương Tina');
   const [settingsLogoSubtitle, setSettingsLogoSubtitle] = useState(studioSettings?.logoSubtitle || 'Bridal & Editorial Gallery');
+  const [settingsAdminPassword, setSettingsAdminPassword] = useState(studioSettings?.adminPassword || '1234');
 
   // Form states for creating/editing albums
   const [albumTitle, setAlbumTitle] = useState('');
@@ -145,6 +148,26 @@ export default function AdminPanel({
       reader.readAsDataURL(file);
     } catch (err) {
       triggerToast('Lỗi khi nén ảnh bìa!');
+    }
+  };
+
+  const handleUploadHeroImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        if (event.target?.result) {
+          const base64Url = event.target.result.toString();
+          const compressed = await compressImage(base64Url);
+          setSettingsHeroImageUrl(compressed.url);
+          triggerToast('Đã tải hình ảnh lên và nén làm ảnh nền Banner chính!');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      triggerToast('Lỗi khi tải hoặc nén ảnh nền!');
     }
   };
 
@@ -396,6 +419,17 @@ export default function AdminPanel({
           >
             🚀 Hướng dẫn deploy
           </button>
+
+          {onLogout && (
+            <button
+              id="tab-btn-logout"
+              type="button"
+              onClick={onLogout}
+              className="px-4 py-2.5 rounded-none transition-all duration-300 flex items-center gap-1.5 cursor-pointer text-rose-500 hover:text-white hover:bg-rose-950/40 ml-auto font-medium text-[11px] uppercase tracking-wider"
+            >
+              🔑 Đăng xuất
+            </button>
+          )}
         </div>
       </div>
 
@@ -1132,8 +1166,9 @@ export default function AdminPanel({
                 heroImageUrl: settingsHeroImageUrl,
                 logoText: settingsLogoText,
                 logoSubtitle: settingsLogoSubtitle,
+                adminPassword: settingsAdminPassword,
               });
-              triggerToast('Đã cập nhật giao diện thành công!');
+              triggerToast('Đã cập nhật giao diện & mật khẩu quản trị thành công!');
             }
           }} className="space-y-6 text-stone-300">
             
@@ -1201,15 +1236,43 @@ export default function AdminPanel({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-stone-500 mb-1.5 font-medium">Đường dẫn ảnh nền Banner chính (Hero Image URL)</label>
-                  <input
-                    type="text"
-                    required
-                    value={settingsHeroImageUrl}
-                    onChange={(e) => setSettingsHeroImageUrl(e.target.value)}
-                    className="w-full bg-stone-950 border border-stone-850 px-4 py-2.5 text-stone-100 focus:outline-none focus:border-stone-400 text-xs font-mono"
-                  />
-                  <p className="text-[10px] text-stone-500 mt-1">Dán liên kết ảnh từ Unsplash, Pinterest hoặc bất kỳ máy chủ lưu trữ công khai nào.</p>
+                  <label className="block text-xs uppercase tracking-wider text-stone-500 mb-1.5 font-medium">Ảnh nền Banner chính (Hero Image)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={settingsHeroImageUrl}
+                      onChange={(e) => setSettingsHeroImageUrl(e.target.value)}
+                      placeholder="Nhập đường dẫn liên kết hoặc bấm Tải tệp mới..."
+                      className="flex-1 bg-stone-950 border border-stone-850 px-4 py-2.5 text-stone-100 focus:outline-none focus:border-stone-400 text-xs font-mono"
+                    />
+                    <div className="relative bg-stone-900 hover:bg-stone-850 px-4 flex items-center justify-center border border-stone-800 text-xs text-stone-300 font-light cursor-pointer">
+                      <span className="whitespace-nowrap">Tải tệp</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadHeroImage}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </div>
+                    {settingsHeroImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSettingsHeroImageUrl('');
+                          triggerToast('Đã xóa ảnh nền chính.');
+                        }}
+                        className="bg-stone-900 border border-stone-800 text-rose-400 px-4 hover:bg-rose-950/20 hover:text-rose-300 text-xs cursor-pointer whitespace-nowrap"
+                      >
+                        Xóa ảnh
+                      </button>
+                    )}
+                  </div>
+                  {settingsHeroImageUrl && (
+                    <div className="relative mt-2 border border-stone-800 p-1 bg-stone-950">
+                      <img src={settingsHeroImageUrl} alt="Review hero" className="w-full h-32 object-cover opacity-80" />
+                    </div>
+                  )}
+                  <p className="text-[10px] text-stone-500 mt-1">Bạn có thể tự do dán liên kết ảnh từ bất cứ đâu, hoặc tải tệp trực tiếp từ thiết bị của bạn.</p>
                 </div>
               </div>
             </div>
@@ -1275,6 +1338,23 @@ export default function AdminPanel({
                   onChange={(e) => setSettingsAddress(e.target.value)}
                   className="w-full bg-stone-950 border border-stone-850 px-4 py-2.5 text-stone-100 focus:outline-none focus:border-stone-400 text-sm"
                 />
+              </div>
+            </div>
+
+            {/* Section 5: Admin Password settings */}
+            <div className="pb-4 space-y-4 border-t border-stone-900 pt-6">
+              <h4 className="text-sm font-sans tracking-widest uppercase text-amber-500 font-medium">5. Thiết lập Bảo mật Quản trị viên</h4>
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-stone-500 mb-1.5 font-medium">Mật khẩu Đăng nhập Trực tiếp Quản trị viên *</label>
+                <input
+                  type="text"
+                  required
+                  value={settingsAdminPassword}
+                  onChange={(e) => setSettingsAdminPassword(e.target.value)}
+                  className="w-full bg-stone-950 border border-amber-900/40 px-4 py-2.5 text-stone-100 focus:outline-none focus:border-amber-500 text-sm font-mono text-amber-400 placeholder-stone-800"
+                  placeholder="Nhập mật khẩu quản trị..."
+                />
+                <p className="text-[10px] text-stone-500 mt-1">Dùng mật khẩu này để đăng nhập vào trang Quản trị viên và sử dụng các tính năng đăng ảnh nhanh trực tiếp trong Album.</p>
               </div>
             </div>
 

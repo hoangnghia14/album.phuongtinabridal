@@ -40,5 +40,6 @@ export interface StudioSettings {
   heroImageUrl: string;
   logoText: string;
   logoSubtitle: string;
+  adminPassword?: string;
 }
 

@@ -167,7 +167,37 @@ export default function App() {
   const [copiedAlbum, setCopiedAlbum] = useState(false);
 
   // Admin Mode client state for direct posting and deleting inside album details
-  const [isAdminQuickMode, setIsAdminQuickMode] = useState(true);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('thanhthao_admin_logged_in') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+  const [isInlineAdminOpen, setIsInlineAdminOpen] = useState(true);
+  const [adminInputPassword, setAdminInputPassword] = useState('');
+  const [adminLoginError, setAdminLoginError] = useState('');
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const correctPassword = studioSettings?.adminPassword || '1234';
+    if (adminInputPassword === correctPassword) {
+      setIsAdminLoggedIn(true);
+      sessionStorage.setItem('thanhthao_admin_logged_in', 'true');
+      setAdminLoginError('');
+      setAdminInputPassword('');
+    } else {
+      setAdminLoginError('Mật khẩu quản trị viên không chính xác. Vui lòng thử lại!');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    if (confirm('Bạn có chắc chắn muốn đăng xuất quyền quản trị?')) {
+      setIsAdminLoggedIn(false);
+      sessionStorage.removeItem('thanhthao_admin_logged_in');
+      handleNavigate('home');
+    }
+  };
   const [isInlineUploading, setIsInlineUploading] = useState(false);
   const [inlinePhotoUrl, setInlinePhotoUrl] = useState('');
   const [inlinePhotoTitle, setInlinePhotoTitle] = useState('');
@@ -523,12 +553,18 @@ export default function App() {
             {/* Scenic Hero Welcome Slideshow Slider section */}
             <section className="relative w-full h-[70vh] sm:h-[85vh] flex items-center justify-center overflow-hidden uppercase font-serif">
               <div className="absolute inset-0 z-0">
-                <img
-                  src={studioSettings.heroImageUrl}
-                  alt={`${studioSettings.brandName} Cover Hero`}
-                  className="w-full h-full object-cover scale-[1.01] filter grayscale-[40%] contrast-[1.08] opacity-80"
-                  referrerPolicy="no-referrer"
-                />
+                {studioSettings.heroImageUrl ? (
+                  <img
+                    src={studioSettings.heroImageUrl}
+                    alt={`${studioSettings.brandName} Cover Hero`}
+                    className="w-full h-full object-cover scale-[1.01] filter grayscale-[40%] contrast-[1.08] opacity-80"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-stone-900 border-b border-stone-850 flex items-center justify-center">
+                    <span className="text-xs text-stone-600 font-sans tracking-widest uppercase">Trống ảnh nền Banner chính</span>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/40 to-stone-950/60" />
               </div>
 
@@ -728,22 +764,24 @@ export default function App() {
                     </div>
 
                     {/* Direct Admin Control toggle */}
-                    <button
-                      type="button"
-                      onClick={() => setIsAdminQuickMode(!isAdminQuickMode)}
-                      className={`inline-flex items-center gap-2 border px-4 py-2.5 rounded-none text-xs uppercase tracking-widest font-sans transition-all duration-300 cursor-pointer ${
-                        isAdminQuickMode 
-                          ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-stone-950 font-semibold shadow-lg' 
-                          : 'bg-stone-900/65 hover:bg-stone-850 border-stone-800 text-stone-300 hover:text-white'
-                      }`}
-                    >
-                      {isAdminQuickMode ? '🔒 Đóng Bảng Quản Trị' : '⚡ Đăng ảnh / Xóa ảnh'}
-                    </button>
+                    {isAdminLoggedIn && (
+                      <button
+                        type="button"
+                        onClick={() => setIsInlineAdminOpen(!isInlineAdminOpen)}
+                        className={`inline-flex items-center gap-2 border px-4 py-2.5 rounded-none text-xs uppercase tracking-widest font-sans transition-all duration-300 cursor-pointer ${
+                          isInlineAdminOpen 
+                            ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-stone-950 font-semibold shadow-lg' 
+                            : 'bg-stone-900/65 hover:bg-stone-850 border-stone-800 text-stone-300 hover:text-white'
+                        }`}
+                      >
+                        {isInlineAdminOpen ? '🔒 Đóng Bảng Quản Trị' : '⚡ Đăng ảnh / Xóa ảnh'}
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Direct Inline Admin Upload Panel */}
-                {isAdminQuickMode && (
+                {isAdminLoggedIn && isInlineAdminOpen && (
                   <div className="max-w-4xl mx-auto px-4 py-6 bg-stone-900/40 border border-stone-900 space-y-6 animate-fade-in text-left">
                     <div className="border-b border-stone-850 pb-3">
                       <h3 className="font-serif text-lg text-stone-100 font-light italic flex items-center gap-2">
@@ -872,7 +910,7 @@ export default function App() {
                       onPhotoClick={(index) => handlePhotoViewerNavigate(index)}
                       showWatermark={showWatermarks}
                       watermarkText={watermarkText}
-                      isAdminMode={isAdminQuickMode}
+                      isAdminMode={isAdminLoggedIn && isInlineAdminOpen}
                       onDeletePhoto={(photoId) => handleInlineRemovePhoto(currentAlbum.id, photoId)}
                       onSetCover={(photoUrl) => handleInlineSetCover(currentAlbum.id, photoUrl)}
                       coverUrl={currentAlbum.coverUrl}
@@ -896,14 +934,72 @@ export default function App() {
 
         {/* VIEW 4: ADMIN CONTROLLER DASHBOARD */}
         {activePage === 'admin' && (
-          <AdminPanel
-            albums={albums}
-            favorites={favoritesSubmissions}
-            onSaveAlbums={(updated) => setAlbums(updated)}
-            onClearFavorites={(index) => setFavoritesSubmissions(favoritesSubmissions.filter((_, i) => i !== index))}
-            studioSettings={studioSettings}
-            onSaveSettings={setStudioSettings}
-          />
+          !isAdminLoggedIn ? (
+            <div className="max-w-md mx-auto px-6 py-16 text-center space-y-8 animate-fade-in my-10 bg-stone-900/20 border border-stone-900">
+              <div className="space-y-3">
+                <span className="text-[10px] tracking-[0.25em] text-amber-500/80 font-mono uppercase">
+                  HỆ THỐNG QUẢN TRỊ BẢO MẬT
+                </span>
+                <h2 className="font-serif text-3xl font-light tracking-[0.1em] text-stone-100 uppercase italic">
+                  Đăng Nhập Admin
+                </h2>
+                <div className="h-[1px] w-12 bg-amber-500/30 mx-auto mt-2" />
+              </div>
+
+              <p className="text-xs text-stone-400 font-light leading-relaxed max-w-sm mx-auto">
+                Vui lòng điền mật khẩu quản trị viên được cấu hình riêng để truy cập bảng điểu khiển, chỉnh sửa giao diện và danh mục album.
+              </p>
+
+              <form onSubmit={handleAdminLogin} className="space-y-4">
+                <div className="relative">
+                  <input
+                    type="password"
+                    required
+                    value={adminInputPassword}
+                    onChange={(e) => {
+                      setAdminInputPassword(e.target.value);
+                      if (adminLoginError) setAdminLoginError('');
+                    }}
+                    placeholder="MẬT KHẨU QUẢN TRỊ VIÊN"
+                    className="w-full bg-stone-950 border border-stone-850 px-4 py-3 text-center text-sm font-mono tracking-widest text-stone-100 placeholder-stone-700 focus:outline-none focus:border-amber-500/80 transition-colors"
+                  />
+                </div>
+
+                {adminLoginError && (
+                  <p className="text-[11px] text-rose-500 font-sans tracking-wide">
+                    ⚠️ {adminLoginError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-stone-100 hover:bg-stone-200 text-stone-950 font-sans text-xs tracking-[0.2em] uppercase font-bold py-3.5 transition-colors cursor-pointer"
+                >
+                  XÁC THỰC QUYỀN HẠN
+                </button>
+              </form>
+
+              <div className="pt-4">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('home')}
+                  className="text-[10px] font-sans uppercase tracking-[0.15em] text-stone-500 hover:text-stone-300 transition-colors"
+                >
+                  ← QUAY LẠI TRANG CHỦ
+                </button>
+              </div>
+            </div>
+          ) : (
+            <AdminPanel
+              albums={albums}
+              favorites={favoritesSubmissions}
+              onSaveAlbums={(updated) => setAlbums(updated)}
+              onClearFavorites={(index) => setFavoritesSubmissions(favoritesSubmissions.filter((_, i) => i !== index))}
+              studioSettings={studioSettings}
+              onSaveSettings={setStudioSettings}
+              onLogout={handleAdminLogout}
+            />
+          )
         )}
       </main>
 
